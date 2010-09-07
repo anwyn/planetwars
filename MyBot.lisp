@@ -7,7 +7,7 @@
 ;;; |_|  |_|\__, |____/ \___/ \__|
 ;;;         |___/
 ;;;
-;;; Author: Ole Arndt <anwyn@github.com>
+;;; Author: Ole Arndt <anwyn@sugarshark.com>
 ;;; License: MIT
 ;;;
 
