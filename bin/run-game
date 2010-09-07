@@ -1,0 +1,17 @@
+#!/bin/sh
+CCL=`which ccl`
+SBCL=`which sbcl`
+
+MAP=$1
+BOT=$2
+
+# prefer sbcl
+if [ -x "$SBCL" ]; then
+    echo Running with SBCL against $BOT on $MAP >&2
+    exec java -jar tools/PlayGame.jar maps/$MAP.txt 1000 1000 log.txt \
+        "$SBCL --script MyBot.lisp" "java -jar example_bots/$BOT.jar"
+elif [ -x "$CCL" ]; then
+    echo Running with CCL against $BOT on $MAP >&2
+    exec java -jar tools/PlayGame.jar maps/$MAP.txt 1000 1000 log.txt \
+        "$CCL --no-init --batch --load MyBot.lisp" "java -jar example_bots/$BOT.jar"
+fi

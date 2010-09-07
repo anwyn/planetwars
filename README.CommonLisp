@@ -1,0 +1,17 @@
+This is a starter package for Common Lisp for the Google AI Challenge 2010.
+
+There are two lisp files:
+
+ - planetwars.lisp ::  the world description, game loop and utilities
+ - MyBot.lisp      ::  An example bot
+
+I tried to follow the API of the official starter packages.
+
+Make sure to compile planetwars.lisp ahead of time otherwise the bot
+may time out due to the higher startup time.
+
+Please see the script in the bin directory for invocation of the bot.
+
+I have tested the code with SBCL and CCL on 64bit Gentoo Linux.
+
+
