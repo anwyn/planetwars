@@ -1,0 +1,58 @@
+* Tactics
+** Attack Planet
+
+   - Find a friendly planet with excess ships. 
+   - Find a {enemy,neutral} target planet where sum m of
+       + ships on planet
+       + ships produced in distance * turns
+       + current incoming reinforcement fleets
+       - own fleets already on the way
+     is smaller than the number of spare ships
+   - send fleet of size m + 1
+
+** Combined Attack
+   Attack a planet from several planets so that all fleets arrive
+   at the same time. Start with the attack from the furthest planet.
+   This will hopefully lead the enemy to underestimate the defense
+   force needed.
+
+** Reinforce planet
+   Reinforce a friendly planet with an incoming enemy fleet
+   so that the planet will not be lost or will be reconquered.
+
+* Strategies
+** Colonize nearby planets 
+   For all friendly planets: Try to conquer nearby planets via the
+   'Attack Planet' tactics.
+
+** Reinforce weak nearby planets
+   For friendly, weak, nearby planets, send some excess ships from a
+   strong planet as reinforcement to counter the snipe tactic.
+
+** Reinforce planets with incoming enemy fleets
+   - Find friendly planets with incoming enemy fleets
+   - Determine nr of missing ships
+   - Find friendly planets that can send reinforcements that arrive in
+     time
+
+** Intercept
+   If the enemy is trying to conquer a neutral planet and we have a
+   planet with spare ships nearby, try to conquer it first. Rationale:
+   every planet less for the opponent is less production for him.
+
+** Reconquer lost planets
+   Planets that we lost to the enemy the last round will probably
+   still have a weak occupation force. Target them with high priority.
+
+** Snipe weak enemy planets
+   Find a weak enemy planet and send of a fleet. Possibly in a
+   combined attack from multiple planets.
+
+** Armagedon
+   If number of own spare ships are greater than nr of enemies ships +
+   production: send all ships to all enemy planets
+
+** Check ongoing attacks for necessary support
+   - Check all outgoing fleet if their size is still big enough for
+     target. If not, try to find a nearby planet that can send a
+     support fleet. This can be also a continuation of a Combined attack.

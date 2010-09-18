@@ -26,23 +26,26 @@
       (elt sequence (random len)))))
 
 (defun fleet-needed (source target)
-  (+ (ships target)
-     (* (growth target)
-        (distance source target))))
+  (+ 1
+     (ships target)
+     (if (neutral? target)
+         (* (growth target)
+            (distance source target))
+         0)))
 
 ;;;; ----------------------------------------------------------------------------
 ;;;; * Example bot
 
 (defclass my-bot (bot)
-  ((ships-to-retain :accessor ships-to-retain :initarg :ships-to-retain)))
+  ((ships-to-retain :accessor ships-to-retain :initarg :ships-to-retain :initform 3)))
 
-(defmethod run-one-turn ((bot my-bot))
+(defmethod do-turn ((bot my-bot))
   "The bot tries to find a random planet that he owns that has more
 ships than an randomly picked target planet and sends a fleet
 big enough to conquer it.
 It takes the growth rate of the other planet into account."
-  (loop :for source = (random-element (my-planets))
-        :for target = (random-element (not-my-planets))
+  (loop :for source = (random-element (friendly (planets *world*)))
+        :for target = (random-element (unfriendly (planets *world*)))
         :for tries from 1
         :while (< tries 10)
         :when (and source
@@ -54,8 +57,9 @@ It takes the growth rate of the other planet into account."
         :do (let* ((max-ships (- (ships source) (ships-to-retain bot)))
                    (needed-ships (fleet-needed source target))
                    (ships-in-fleet (/ (+ max-ships needed-ships) 2)))
-              (issue-order source target ships-in-fleet)
-              (decf (ships source) ships-in-fleet))))
+              (when (and (> ships-in-fleet 0) (< ships-in-fleet max-ships))
+                (issue-order source target ships-in-fleet)
+                (decf (ships source) ships-in-fleet)))))
 
 ;;;; ----------------------------------------------------------------------------
 ;;;; * Startup
@@ -66,8 +70,8 @@ It takes the growth rate of the other planet into account."
   (planetwars (make-instance 'my-bot :ships-to-retain 3)))
 
 ;;; Go, go, go
-#+sbcl
-(sb-ext:quit :unix-status (main))
+;; #+sbcl
+;; (sb-ext:quit :unix-status (main))
 #+abcl
 (extensions:quit :status (main))
 #+ccl
