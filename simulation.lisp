@@ -6,7 +6,8 @@
 ;;; |___/_|_| |_| |_|\__,_|_|\__,_|\__|_|\___/|_| |_|
 
 ;;;
-;;; Copyright (C) 2010 Ole Arndt <ole@sugarshark.com>
+;;; Copyright (C) 2010 Ole Arndt <anwyn@sugarshark.com>
+;;; License: Apache Software License 2.0
 ;;;
 
 (in-package :planetwars)
