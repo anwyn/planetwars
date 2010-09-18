@@ -7,9 +7,9 @@ MyBot:
 
 entry.zip: MyBot.lisp planetwars.lisp
 	rm -f $@
+	git tag -f last-submission
 	git archive --format zip -o $@ HEAD $^
 
-.PHONY submission clean
 
 submission: entry.zip
 
