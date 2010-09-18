@@ -64,16 +64,13 @@ It takes the growth rate of the other planet into account."
 ;;;; ----------------------------------------------------------------------------
 ;;;; * Startup
 
+(defpackage :pwbot
+    (:use #:planetwars #:common-lisp)
+  (:export #:main))
+
+(in-package :pwbot)
 (defun main ()
   "Main entry point."
-  (setf *random-state* (make-random-state t))
-  (planetwars (make-instance 'my-bot :ships-to-retain 3)))
-
-;;; Go, go, go
-;; #+sbcl
-;; (sb-ext:quit :unix-status (main))
-#+abcl
-(extensions:quit :status (main))
-#+ccl
-(ccl:quit (planetwars (main)))
+  (let ((*random-state* (make-random-state t)))
+    (planetwars (make-instance 'planetwars::my-bot :ships-to-retain 3))))
 

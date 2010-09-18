@@ -1,0 +1,8 @@
+#!/bin/sh
+
+MAP=$1
+BOT=$2
+
+exec java -jar tools/PlayGame.jar maps/$MAP.txt 1000 1000 log.txt \
+    MyBot "java -jar example_bots/$BOT.jar"
+

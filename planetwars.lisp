@@ -11,7 +11,8 @@
 ;;;
 
 (defpackage :planetwars
-    (:use :cl :sb-ext))
+    (:use #:common-lisp #:sb-ext)
+  (:export #:planetwars))
 
 (in-package :planetwars)
 
@@ -19,6 +20,7 @@
 ;;;; * World description
 
 (defvar *world*)
+(defvar *player*)
 (defvar *orders*)
 (defvar *turn*)
 
@@ -129,22 +131,28 @@ dynamic variable *WORLD*")
 ;;; selectors for entities
 
 (defun owned-by (owner entities)
+  "Select all ENTITIES owned by the player specified by OWNER."
   (remove-if-not (lambda (e) (owner? e owner)) entities))
 
 (defun not-owned-by (owner entities)
+  "Select all ENTITIES not owned by the player specified by OWNER."
   (remove-if (lambda (e) (owner? e owner)) entities))
 
 (defun hostile (entities)
+  "Select all hostile ENTITIES."
   (remove-if-not #'hostile? entities))
 
 (defun friendly (entities)
+  "Select all friendly ENTITIES."
   (remove-if-not #'friendly? entities))
 
-(defun neutral (entities)
-  (remove-if-not #'neutral? entities))
-
 (defun unfriendly (entities)
+  "Select all ENTITIES which are not friendly."
   (remove-if #'friendly? entities))
+
+(defun neutral (entities)
+  "Select all neutral ENTITIES."
+  (remove-if-not #'neutral? entities))
 
 (defun distance (source destination)
   "Return the distance between two planets. This is also the number
@@ -169,8 +177,6 @@ of turns a fleet from SOURCE needs to reach the DESTINATION."
 
 ;;;; ----------------------------------------------------------------------------
 ;;;; * Game control
-;;;;
-
 
 (defgeneric issue-order (source destination num-ships)
   (:documentation "Issue an order: Send NUM-SHIPS from SOURCE to DESTINATION.")
@@ -180,7 +186,6 @@ of turns a fleet from SOURCE needs to reach the DESTINATION."
     (push (list (id source) (id destination)
                 (min (ships source) (ceiling num-ships)))
           *orders*)))
-
 
 ;;;; ----------------------------------------------------------------------------
 ;;;; * Logging utilities
@@ -208,13 +213,14 @@ of turns a fleet from SOURCE needs to reach the DESTINATION."
 (defun run-bot (bot world)
   "Run a bot and return the orders it issued."
   (let ((*orders* nil)
-        (*world* world))
+        (*world* world)
+        (*player* bot))
     (do-turn bot)
     *orders*))
 
 (defun finish-turn (orders &optional (stream *standard-output*))
   "Finish a turn, emit orders."
-  (format stream "~{~D ~D ~D~%~}" orders)
+  (format stream "~:{~D ~D ~D~%~}" orders)
   (format stream "go~%")
   (force-output stream))
 

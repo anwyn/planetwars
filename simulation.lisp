@@ -14,9 +14,8 @@
 (defvar *log-output* *error-output*
   "Output stream for the engine.")
 
-
 (defun copy-world (world &optional (player1 1))
-  "Copy the game world. Current bot will always be player nr.1"
+  "Copy the game world. Current bot will always be player nr. 1"
   (flet ((adjust-owner (owner)
            (cond ((= owner 1) player1)
                  ((= owner player1) 1)
@@ -40,18 +39,27 @@
                                                :turns-remaining (turns-remaining f))))))
 
 (defun planets-under-attack (world)
+  "Selector for planets having arriving fleets."
   (remove-if-not (lambda (p)
                    (some #'arrived? (incoming-fleets p (fleets world))))
                  (planets world)))
 
 (defun fight-battles (world)
   (dolist (planet (planets-under-attack world))
-    (invasion planet
-              (remove-if-not #'arrived?
-                             (incoming-fleets planet (fleets world))))))
+    (let ((fleets (remove-if-not #'arrived?
+                                 (incoming-fleets planet (fleets world)))))
 
+      (dolist (nr '(1 2))
+        (let ((arrivals (owned-by nr fleets)))
+          (when arrivals
+            (format *log-output* "Player ~D's ~D ships arrive at player ~D's planet ~D, home to ~D ships.~%"
+                    nr (reduce #'+ arrivals :key #'ships) (owner planet) (id planet) (ships planet)))))
+
+      (invasion planet fleets))))
+
+;;; this can surely be done better...
 (defun invasion (planet fleets)
-  "Attack the planet with fleets"
+  "Attack the planet with fleets."
   (let* ((owner (owner planet))
          (homeforce (cons owner (+ (ships planet)
                                    (reduce #'+ (owned-by owner fleets) :key #'ships)))))
@@ -69,12 +77,13 @@
                         "Player ~D captures neutral planet ~D.~%"
                         (car biggestforce) (id planet))
 
-               (setf (owner planet) (car biggestforce)
-                     (ships planet) (- (cdr biggestforce) (cdr secondforce))))))
+                (setf (owner planet) (car biggestforce)
+                      (ships planet) (- (cdr biggestforce) (cdr secondforce))))))
 
         (let ((enemyforce (cons (if (= owner 1) 2 1)
                                 (reduce #'+ (not-owned-by owner fleets) :key #'ships))))
           (setf (ships planet) (- (cdr homeforce) (cdr enemyforce)))
+
           (if (< (ships planet) 0)
               (progn
                 (format *log-output*
@@ -86,33 +95,6 @@
               (format *log-output*
                       "Player ~D attacks planet ~D but fails.~%"
                       (car enemyforce) (id planet)))))))
-
-
-
-(defun execute-order (world owner order)
-  (destructuring-bind (source destination num-ships) order
-    (let* ((src (elt (planets world) source))
-           (dst (elt (planets world) destination))
-           (dist (distance src dst)))
-      (assert (not (eq src dst)))
-      (assert (> num-ships 0))
-      (assert (<= num-ships (ships src)))
-      (assert (= (owner src) owner))
-      (decf (ships src) num-ships)
-
-      (format *log-output*
-              "Player ~D sends ~D ships from planet ~D to planet ~D.~%"
-              owner num-ships source destination)
-
-      (push (make-instance 'fleet
-                           :id (length (fleets world))
-                           :owner owner
-                           :ships num-ships
-                           :source src
-                           :destination dst
-                           :trip-length dist
-                           :turns-remaining dist)
-            (fleets world)))))
 
 
 (defun advance-fleets (world)
@@ -127,13 +109,43 @@
   (dolist (p (remove-if #'neutral? (planets world)))
     (incf (ships p) (growth p))))
 
+(defun execute-order (world player order)
+  "Execute a single ORDER from a PLAYER."
+  (destructuring-bind (source destination num-ships) order
+    (let* ((src (elt (planets world) source))
+           (dst (elt (planets world) destination))
+           (dist (distance src dst)))
+      (assert (not (eq src dst)))
+      (assert (> num-ships 0))
+      (assert (<= num-ships (ships src)))
+      (assert (= (owner src) player))
+      (decf (ships src) num-ships)
 
-(defun simulate (world orders1 orders2)
-  (dolist (order orders1)
-    (execute-order world 1 order))
+      (format *log-output*
+              "Player ~D sends ~D ships from planet ~D to planet ~D owned by player ~D. Arrival in ~D turns.~%"
+              player num-ships source destination (owner dst) dist)
 
-  (dolist (order orders2)
-    (execute-order world 2 order))
+      (push (make-instance 'fleet
+                           :id (length (fleets world))
+                           :owner player
+                           :ships num-ships
+                           :source src
+                           :destination dst
+                           :trip-length dist
+                           :turns-remaining dist)
+            (fleets world)))))
+
+(defun simulate (world &rest players)
+  "Run one simulation step."
+  ;; first run bots on copies of the world,
+  ;; then execute their orders, which side-effect the world
+  (let ((orderlist (loop :for player :in players
+                         :for player-nr :upfrom 1
+                         :collect (run-bot player (copy-world world player-nr)))))
+    (loop :for orders :in orderlist
+          :for player-nr :upfrom 1
+          :do (dolist (order orders)
+                (execute-order world player-nr order))))
 
   ;; move fleets forward one turn
   (advance-fleets world)
@@ -154,71 +166,61 @@
     * One player runs out of ships entirely. The winner is the other player.
     * Both players run out of ships at the same time. The game is a draw.
 "
-  (let ((p1-ships (reduce #'+ (owned-by 1 (append (fleets world) (planets world))) :key #'ships))
-        (p2-ships (reduce #'+ (owned-by 2 (append (fleets world) (planets world))) :key #'ships)))
-    (cond ((>= turn (1- maxturns))
-           (break)
-           (format *log-output* "Turnlimit reached, ~A~%"
-                   (cond ((> p1-ships p2-ships) " Player 1 wins.")
-                         ((> p2-ships p1-ships) " Player 2 wins.")
-                         (t " it's a draw.")))
+  (let* ((planets (planets world))
+         (fleets (fleets world))
+         (entities (append fleets planets))
+         (p1-ships (reduce #'+ (owned-by 1 entities) :key #'ships))
+         (p2-ships (reduce #'+ (owned-by 2 entities) :key #'ships)))
+    (flet ((explain-ending (cause)
+             (format *log-output* "~A, ~A~%" cause
+                     (cond ((> p1-ships p2-ships) " player 1 wins.")
+                           ((> p2-ships p1-ships) " player 2 wins.")
+                           (t " it's a draw.")))
+             (format *log-output* "Player 1 owns ~D planets, player 2 owns ~D.~%"
+                     (length (owned-by 1 planets)) (length (owned-by 2 planets)))
+             (format *log-output* "Player 1 has ~D ships, player 2 has ~D.~%"
+                     p1-ships p2-ships)
+             (format *log-output* "World:~%~A" world)
+             (force-output *log-output*)))
+      (cond
+        ((>= turn (1- maxturns))
+         (explain-ending "Turnlimit reached")
+         t)
+        ((or (<= p1-ships 0)
+             (<= p2-ships 0))
+         (explain-ending "Out of ships")
+         t)
+        (t nil)))))
 
-           (format *log-output* "Player 1 has ~D ships, Player 2 has ~D.~%"
-                   p1-ships p2-ships)
-
-           (format *log-output* "~A" world)
-
-           (force-output *log-output*)
-           t)
-          ((or (<= p1-ships 0)
-               (<= p2-ships 0))
-
-           (format *log-output* "Out of ships, ~A~%"
-                   (cond ((> p1-ships p2-ships) " Player 1 wins.")
-                         ((> p2-ships p1-ships) " Player 2 wins.")
-                         (t " it's a draw.")))
-
-           (format *log-output* "Player 1 has ~D ships, Player 2 has ~D.~%"
-                   p1-ships p2-ships)
-
-           (format *log-output* "~A" world)
-
-           (force-output *log-output*)
-           t)
-          (t nil))))
-
-
-(defun run-game (world bot1 bot2 &key (turns 1000))
-  (startup bot1)
-  (startup bot2)
-  (format *log-output* "Starting game...~%")
-  (unwind-protect
-       (dotimes (turn turns)
-         (format *log-output* "Starting turn ~D~%" turn)
-         (simulate world
-                   (run-bot bot1 (copy-world world 1))
-                   (run-bot bot2 (copy-world world 2)))
-         (when (game-over? world turn turns)
-           (return)))
-    (shutdown bot1)
-    (shutdown bot2)))
-
+(defun run-game (world turns &rest bots)
+  "Run a game in the given world for n turns."
+  (let ((*random-state* (make-random-state t)))
+    (format *log-output* "Initializing bots.~%")
+    (mapc #'startup bots)
+    (format *log-output* "Starting game in world~%~A" world)
+    (unwind-protect
+         (dotimes (turn turns)
+           (format *log-output* "Starting turn ~D~%" turn)
+           (apply #'simulate world bots)
+           (when (game-over? world turn turns)
+             (return)))
+      (format *log-output* "Game has finished.~%")
+      (mapc #'shutdown bots)
+      (format *log-output* "Bots have been shut down.~%"))))
 
 (defun read-map (map)
+  "Read the game world from a MAP file."
   (with-open-file (stream map :direction :input :if-does-not-exist :error)
     (parse-game-world stream)))
 
-(defun play-game (map player1 player2 &key (turns 1000))
+(defun play-game (map turns &rest players)
+  "Play a game."
   (flet ((make-bot (player)
            (etypecase player
              (bot player)
              (symbol (make-instance player))
-             (string (make-instance 'piped-bot :command player))
-             (list (make-instance 'piped-bot :command player)))))
-      (let ((world (read-map map))
-            (bot1 (make-bot player1))
-            (bot2 (make-bot player2)))
-        (run-game world bot1 bot2 :turns turns))))
+             (string (make-instance 'piped-bot :command player)))))
+    (apply #'run-game (read-map map) turns (mapcar #'make-bot players))))
 
 ;;;; ----------------------------------------------------------------------------
 ;;;; * Piped Bot
