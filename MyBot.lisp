@@ -8,7 +8,7 @@
 ;;;         |___/
 ;;;
 ;;; Author: Ole Arndt <anwyn@sugarshark.com>
-;;; License: MIT
+;;; License: Apache Software License 2.0
 ;;;
 
 ;; load world description and utilities
@@ -29,9 +29,9 @@
   (+ 1
      (ships target)
      (if (neutral? target)
+         0
          (* (growth target)
-            (distance source target))
-         0)))
+            (distance source target)))))
 
 ;;;; ----------------------------------------------------------------------------
 ;;;; * Example bot
@@ -46,13 +46,13 @@ big enough to conquer it.
 It takes the growth rate of the other planet into account."
   (loop :for source = (random-element (friendly (planets *world*)))
         :for target = (random-element (unfriendly (planets *world*)))
-        :for tries from 1
+        :for tries :from 1
         :while (< tries 10)
         :when (and source
                    target
-                   (null (incoming-fleets target))
-                   (> (- (ships source)
-                         (fleet-needed source target))
+                   (null (friendly (incoming-fleets target)))
+                   (>= (- (ships source)
+                          (fleet-needed source target))
                       (ships-to-retain bot)))
         :do (let* ((max-ships (- (ships source) (ships-to-retain bot)))
                    (needed-ships (fleet-needed source target))
@@ -60,6 +60,7 @@ It takes the growth rate of the other planet into account."
               (when (and (> ships-in-fleet 0) (< ships-in-fleet max-ships))
                 (issue-order source target ships-in-fleet)
                 (decf (ships source) ships-in-fleet)))))
+
 
 ;;;; ----------------------------------------------------------------------------
 ;;;; * Startup
@@ -69,6 +70,7 @@ It takes the growth rate of the other planet into account."
   (:export #:main))
 
 (in-package :pwbot)
+
 (defun main ()
   "Main entry point."
   (let ((*random-state* (make-random-state t)))
